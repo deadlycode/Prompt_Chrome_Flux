@@ -308,60 +308,68 @@ Generated English image generation prompt:`;
 
       const finalGeneratedText = finalData.candidates[0].content.parts[0].text;
       result.textContent = finalGeneratedText;
-      result.style.display = 'block';
+      result.style.display = 'block'; // Display the final AI output
 
-      // --- Enhanced History Logging ---
+      // --- History Logging - Moved to the end of try block ---
+      // All variables (finalGeneratedText, interpretedPromptText, metaPrompt, processedProfileInstructions, etc.)
+      // should be defined and populated by this point.
+
+      const dynamicVariableValues = {};
+      const dynamicInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+      dynamicInputs.forEach(input => {
+        dynamicVariableValues[input.dataset.variableName] = input.value || '';
+      });
+
+      const baseHistoryEntry = {
+        timestamp: new Date().toISOString(),
+        model: modelToUse, // Defined at the start of the function
+        profileId: currentSelectedProfile.id,
+        profileName: currentSelectedProfile.name,
+        processingMode: processingMode, // Defined at the start of the function
+        mainInputText: mainInputValue, // Defined at the start of the function
+        dynamicVariableValues: dynamicVariableValues,
+        finalGeneratedResponse: finalGeneratedText // Should hold the actual AI output
+      };
+
+      let summaryTurkishText = `[${baseHistoryEntry.profileName}]`;
+
+      if (processingMode === "interpretive") {
+        // These variables are specific to the interpretive block and should be passed or accessible here.
+        // Assuming 'processedProfileInstructions' and 'metaPrompt' are available from the interpretive scope.
+        baseHistoryEntry.profileInstructionsUsed = processedProfileInstructions;
+        baseHistoryEntry.metaPromptSent = metaPrompt;
+        baseHistoryEntry.interpretedPromptText = interpretedPromptText; // This is the result of the 1st API call
+        baseHistoryEntry.finalPromptSent = interpretedPromptText; // This was sent to the 2nd API call
+        summaryTurkishText += ` (Yorumlayıcı) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+      } else { // Simple mode
+        baseHistoryEntry.profileTemplateUsed = currentSelectedProfile.template;
+        baseHistoryEntry.finalPromptSent = finalPromptForAPI; // The fully constructed prompt sent to API
+        summaryTurkishText += ` (Basit) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+      }
+
+      baseHistoryEntry.turkishText = summaryTurkishText;
+
+      console.log('[HISTORY SAVE ATTEMPT] baseHistoryEntry:', JSON.stringify(baseHistoryEntry, null, 2));
+
+      // Get current history, push new entry, then save.
       chrome.storage.sync.get(['promptHistory'], function(syncResult) {
         let history = syncResult.promptHistory || [];
-        if (history.length >= 20) {
-          history.shift();
-        }
-
-        const dynamicVariableValues = {};
-        const dynamicInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
-        dynamicInputs.forEach(input => {
-          dynamicVariableValues[input.dataset.variableName] = input.value || '';
-        });
-
-        const baseHistoryEntry = {
-          timestamp: new Date().toISOString(),
-          model: modelToUse,
-          profileId: currentSelectedProfile.id,
-          profileName: currentSelectedProfile.name,
-          processingMode: processingMode, // already defined: currentSelectedProfile.processingMode || "simple"
-          mainInputText: mainInputValue, // already defined: userInputText.value.trim()
-          dynamicVariableValues: dynamicVariableValues,
-          finalGeneratedResponse: finalGeneratedText // This is the actualAIOutput
-        };
-
-        let summaryTurkishText = `[${baseHistoryEntry.profileName}]`;
-
-        if (processingMode === "interpretive") {
-          baseHistoryEntry.profileInstructionsUsed = processedProfileInstructions; // Defined in interpretive block
-          baseHistoryEntry.metaPromptSent = metaPrompt; // Defined in interpretive block
-          baseHistoryEntry.interpretedPromptText = interpretedPromptText; // Defined in interpretive block
-          baseHistoryEntry.finalPromptSent = interpretedPromptText; // What was sent to the 2nd API call
-          summaryTurkishText += ` (Yorumlayıcı) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
-        } else { // Simple mode
-          baseHistoryEntry.profileTemplateUsed = currentSelectedProfile.template;
-          baseHistoryEntry.finalPromptSent = finalPromptForAPI; // The fully constructed prompt
-          summaryTurkishText += ` (Basit) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
-        }
-
-        baseHistoryEntry.turkishText = summaryTurkishText; // Deprecated for detailed display, but used as a summary
-
         history.push(baseHistoryEntry);
+        // Keep only the last 20 entries
+        if (history.length > 20) {
+          history = history.slice(history.length - 20);
+        }
         chrome.storage.sync.set({ 'promptHistory': history }, function() {
           if (chrome.runtime.lastError) {
-            console.error("Error saving history:", chrome.runtime.lastError);
+            console.error('[HISTORY SAVE FAILED] Error saving history:', chrome.runtime.lastError.message);
           } else {
-            console.log("History saved with new structure.");
+            console.log('[HISTORY SAVE SUCCESS] History array saved successfully to chrome.storage.sync.');
           }
         });
       });
 
     } catch (err) {
-      console.error("Prompt generation error:", err);
+      console.error("Prompt generation error:", err.message, err.stack); // Log stack for more details
       showError('Hata: ' + err.message);
     } finally {
       generateButton.disabled = false;

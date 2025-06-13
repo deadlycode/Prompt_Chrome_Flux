@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function renderHistory() {
     chrome.storage.sync.get(['promptHistory'], function(result) {
+      console.log('[HISTORY LOAD] Raw result from chrome.storage.sync.get:', JSON.stringify(result, null, 2));
       const history = result.promptHistory || [];
+      console.log('[HISTORY LOAD] Extracted promptHistory array:', JSON.stringify(history, null, 2));
 
       if (history.length === 0) {
         historyContainer.innerHTML = '<p class="no-history">Henüz kaydedilmiş bir prompt bulunmuyor.</p>';
@@ -35,7 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       historyContainer.innerHTML = '';
       
-      history.slice().reverse().forEach(function(item) {
+      history.slice().reverse().forEach(function(item, index) { // Added index for logging
+        console.log(`[HISTORY ITEM PROCESSING] Index: ${index} (reversed), Item:`, JSON.stringify(item, null, 2));
         const historyItemDiv = document.createElement('div');
         historyItemDiv.className = 'history-item';
 
