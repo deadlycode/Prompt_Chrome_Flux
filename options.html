@@ -174,6 +174,9 @@
       <div class="form-group">
         <label for="profileTemplateInput">Prompt Şablonu:</label>
         <textarea id="profileTemplateInput" rows="5" placeholder="Prompt şablonunu girin"></textarea>
+        <div class="template-helper-text" style="font-size: 0.85em; color: #555; margin-top: 5px;">
+          Prompt şablonunuzda, kullanıcının ana metin girdisinin ekleneceği yeri belirtmek için <code>{USER_INPUT}</code> değişkenini kullanabilirsiniz. Örneğin: <code>Bir resim: {USER_INPUT}, {stil} tarzında.</code>
+        </div>
       </div>
       <button type="button" id="saveProfileButton">Profili Kaydet</button>
       <button type="button" id="cancelProfileButton">İptal</button>

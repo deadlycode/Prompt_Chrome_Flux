@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const error = document.getElementById('error');
 
   const profileSelectDropdown = document.getElementById('profileSelectDropdown');
+  const userInputText = document.getElementById('userInputText'); // Yeni textarea
   const dynamicInputsContainer = document.getElementById('dynamicInputsContainer');
   const promptPreviewArea = document.getElementById('promptPreviewArea');
 
@@ -115,20 +116,33 @@ document.addEventListener('DOMContentLoaded', function() {
   function updatePromptPreview() {
     if (!currentSelectedProfile || !currentSelectedProfile.template) {
       promptPreviewArea.textContent = currentSelectedProfile ? 'Bu profil için şablon bulunamadı.' : 'Lütfen bir profil seçin.';
+      if (!currentSelectedProfile) { // Eğer profil seçili değilse, ana input da önizlemeyi etkilemesin
+        promptPreviewArea.textContent = 'Lütfen bir profil seçin.';
+      } else if (!currentSelectedProfile.template) { // Profil var ama şablon yok
+         promptPreviewArea.textContent = 'Bu profil için şablon bulunamadı.';
+      } else { // Profil ve şablon var, ana inputu da ekleyebiliriz (aşağıda yapılıyor)
+         // Ana inputun boş olması durumunda bile şablonun kendisi gösterilebilir.
+      }
+      // Eğer currentSelectedProfile null ise, promptPreviewArea'yı boşaltmak daha iyi olabilir.
+      // Ya da "Lütfen bir profil seçin ve bir şeyler yazın" gibi bir mesaj. Şimdilik bu kalsın.
       return;
     }
 
-    let promptText = currentSelectedProfile.template;
-    const inputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+    let templateToProcess = currentSelectedProfile.template;
+    const mainInputValue = userInputText.value;
 
-    inputs.forEach(input => {
-      const varName = input.dataset.variableName; // Use original varName from dataset
-      // Ensure regex is properly escaped if varName can contain special regex characters
-      // For simple {var_name} it's usually fine.
+    // 1. Replace {USER_INPUT}
+    templateToProcess = templateToProcess.replace(/\{USER_INPUT\}/g, mainInputValue || '');
+
+    // 2. Replace other dynamic variables
+    const dynamicVarInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+    dynamicVarInputs.forEach(input => {
+      const varName = input.dataset.variableName;
       const regex = new RegExp(`\\{${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g');
-      promptText = promptText.replace(regex, input.value || `{${varName}}`);
+      templateToProcess = templateToProcess.replace(regex, input.value || `{${varName}}`);
     });
-    promptPreviewArea.textContent = promptText;
+
+    promptPreviewArea.textContent = templateToProcess;
   }
 
   generateButton.addEventListener('click', async function() {
@@ -177,11 +191,15 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
       };
 
+      console.log('API Request Body:', JSON.stringify(apiRequestBody, null, 2)); // Log request
+
       const response = await chrome.runtime.sendMessage({
         action: "makeApiRequest",
         url: `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${geminiApiKey}`,
         body: apiRequestBody
       });
+
+      console.log('Response from background.js:', JSON.stringify(response, null, 2)); // Log response
 
       if (!response.success) {
         throw new Error(response.error || 'API yanıtında bilinmeyen bir hata oluştu.');
@@ -203,20 +221,21 @@ document.addEventListener('DOMContentLoaded', function() {
           history.shift();
         }
         
-        let variableInputs = "";
+        let variableSummary = "";
         const dynamicInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
         if (dynamicInputs.length > 0) {
             dynamicInputs.forEach(input => {
-                variableInputs += `${input.dataset.variableName}: ${input.value || 'Boş'}, `;
+                variableSummary += `${input.dataset.variableName}: ${input.value || 'Boş'}, `;
             });
-            variableInputs = variableInputs.slice(0, -2);
+            variableSummary = variableSummary.slice(0, -2); // Remove last comma and space
         } else {
-            variableInputs = "Değişken yok";
+            variableSummary = "Değişken yok";
         }
 
+        const mainInputValueForHistory = userInputText.value.trim();
 
         history.push({
-          turkishText: `${currentSelectedProfile.name} (${variableInputs})`,
+          turkishText: `[${currentSelectedProfile.name}] Ana: ${mainInputValueForHistory || '(boş)'} - Değişkenler: ${variableSummary}`,
           englishPrompt: generatedPrompt,
           generatedResponse: finalGeneratedText,
           timestamp: new Date().toISOString(),
@@ -248,4 +267,5 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialization
   loadProfiles();
   profileSelectDropdown.addEventListener('change', handleProfileSelection);
+  userInputText.addEventListener('input', updatePromptPreview); // Add event listener for main input
 });
