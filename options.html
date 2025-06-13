@@ -178,6 +178,23 @@
           Prompt şablonunuzda, kullanıcının ana metin girdisinin ekleneceği yeri belirtmek için <code>{USER_INPUT}</code> değişkenini kullanabilirsiniz. Örneğin: <code>Bir resim: {USER_INPUT}, {stil} tarzında.</code>
         </div>
       </div>
+
+      <div class="form-group">
+        <label>İşleme Modu:</label>
+        <div>
+          <input type="radio" id="modeSimple" name="processingMode" value="simple" checked>
+          <label for="modeSimple" style="font-weight:normal; margin-right: 15px;">Basit Şablon (Doğrudan yer tutucu değişimi)</label>
+        </div>
+        <div style="margin-top: 5px;">
+          <input type="radio" id="modeInterpretive" name="processingMode" value="interpretive">
+          <label for="modeInterpretive" style="font-weight:normal;">Yorumlayıcı Talimatlar (Ana girdiyi işlemek için AI kullanır)</label>
+        </div>
+        <div class="template-helper-text" style="font-size: 0.85em; color: #555; margin-top: 8px;">
+          <strong>Basit Şablon:</strong> <code>{USER_INPUT}</code> ve diğer değişkenler doğrudan şablona yerleştirilir. Gemini API'ye gönderilen prompt, bu birleştirilmiş metin olur.<br>
+          <strong>Yorumlayıcı Talimatlar:</strong> <code>{USER_INPUT}</code> ile girilen metin, şablonunuzdaki talimatlarla birlikte Gemini API'ye gönderilir. API'nin bu girdiyi yorumlayarak bir prompt üretmesi beklenir. Bu modda, şablonunuz bir prompt'tan ziyade AI için bir görev tanımı gibi olmalıdır.
+        </div>
+      </div>
+
       <button type="button" id="saveProfileButton">Profili Kaydet</button>
       <button type="button" id="cancelProfileButton">İptal</button>
     </form>

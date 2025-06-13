@@ -114,35 +114,60 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updatePromptPreview() {
-    if (!currentSelectedProfile || !currentSelectedProfile.template) {
-      promptPreviewArea.textContent = currentSelectedProfile ? 'Bu profil için şablon bulunamadı.' : 'Lütfen bir profil seçin.';
-      if (!currentSelectedProfile) { // Eğer profil seçili değilse, ana input da önizlemeyi etkilemesin
-        promptPreviewArea.textContent = 'Lütfen bir profil seçin.';
-      } else if (!currentSelectedProfile.template) { // Profil var ama şablon yok
-         promptPreviewArea.textContent = 'Bu profil için şablon bulunamadı.';
-      } else { // Profil ve şablon var, ana inputu da ekleyebiliriz (aşağıda yapılıyor)
-         // Ana inputun boş olması durumunda bile şablonun kendisi gösterilebilir.
-      }
-      // Eğer currentSelectedProfile null ise, promptPreviewArea'yı boşaltmak daha iyi olabilir.
-      // Ya da "Lütfen bir profil seçin ve bir şeyler yazın" gibi bir mesaj. Şimdilik bu kalsın.
+    if (!currentSelectedProfile) {
+      promptPreviewArea.textContent = 'Lütfen bir profil seçin.';
       return;
     }
 
-    let templateToProcess = currentSelectedProfile.template;
-    const mainInputValue = userInputText.value;
+    const processingMode = currentSelectedProfile.processingMode || "simple";
+    const mainInputValue = userInputText.value; // Get main input regardless of mode for now
 
-    // 1. Replace {USER_INPUT}
-    templateToProcess = templateToProcess.replace(/\{USER_INPUT\}/g, mainInputValue || '');
+    if (processingMode === "interpretive") {
+      let profileInstructionsTemplate = currentSelectedProfile.template || "";
+      let processedProfileInstructions = profileInstructionsTemplate;
 
-    // 2. Replace other dynamic variables
-    const dynamicVarInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
-    dynamicVarInputs.forEach(input => {
-      const varName = input.dataset.variableName;
-      const regex = new RegExp(`\\{${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g');
-      templateToProcess = templateToProcess.replace(regex, input.value || `{${varName}}`);
-    });
+      // Substitute dynamic variables (excluding {USER_INPUT}) into profileInstructionsTemplate
+      const dynamicVarInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+      dynamicVarInputs.forEach(input => {
+        const varName = input.dataset.variableName;
+        // Do not replace {USER_INPUT} here for interpretive preview
+        if (varName.toUpperCase() === "USER_INPUT") return;
 
-    promptPreviewArea.textContent = templateToProcess;
+        const regex = new RegExp(`\\{${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g');
+        processedProfileInstructions = processedProfileInstructions.replace(regex, input.value || `{${varName}}`);
+      });
+
+      // Remove {USER_INPUT} placeholder from instructions preview if it exists, as its value is shown separately
+      processedProfileInstructions = processedProfileInstructions.replace(/\{USER_INPUT\}/gi, '(Ana Girdi Yukarıda Gösteriliyor)');
+
+
+      let previewText = "--- Yorumlayıcı Mod Önizlemesi ---\n\n";
+      previewText += `Ana Girdiniz:\n"${mainInputValue || '(boş - prompt oluşturulurken girilmesi önerilir)'}"\n\n`;
+      previewText += "Bu girdi, aşağıdaki talimatlarla (değişkenler doldurulmuş haliyle) AI tarafından işlenecektir:\n";
+      previewText += `"${processedProfileInstructions || '(profilde talimat yok)'}"\n\n`;
+      previewText += "(Nihai prompt, 'Prompt Oluştur' butonuna tıklandığında AI tarafından üretilecektir.)";
+
+      promptPreviewArea.textContent = previewText;
+
+    } else { // Simple mode
+      if (!currentSelectedProfile.template) {
+        promptPreviewArea.textContent = 'Bu profil için şablon bulunamadı.';
+        return;
+      }
+      let templateToProcess = currentSelectedProfile.template;
+
+      // 1. Replace {USER_INPUT}
+      templateToProcess = templateToProcess.replace(/\{USER_INPUT\}/gi, mainInputValue || '');
+
+      // 2. Replace other dynamic variables
+      const dynamicVarInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+      dynamicVarInputs.forEach(input => {
+        const varName = input.dataset.variableName;
+        const regex = new RegExp(`\\{${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g');
+        templateToProcess = templateToProcess.replace(regex, input.value || `{${varName}}`);
+      });
+      promptPreviewArea.textContent = templateToProcess;
+    }
   }
 
   generateButton.addEventListener('click', async function() {
@@ -153,18 +178,12 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    const generatedPrompt = promptPreviewArea.textContent;
+    // Ensure currentSelectedProfile has processingMode, default to "simple" if not
+    const processingMode = currentSelectedProfile.processingMode || "simple";
+    const mainInputValue = userInputText.value.trim();
+    const profileTemplate = currentSelectedProfile.template;
 
-    // Check for unfilled placeholders more robustly
-    if (generatedPrompt.match(/\{([^}]+)\}/g)) {
-        showError('Lütfen tüm değişken alanlarını doldurun. Önizlemede {alan_adı} şeklinde yer tutucular kalmamalıdır.');
-        return;
-    }
-    if (!generatedPrompt.trim()) {
-        showError('Oluşturulan prompt boş olamaz.');
-        return;
-    }
-
+    // Validate common fields
     const { geminiApiKey, geminiModel } = await chrome.storage.sync.get(['geminiApiKey', 'geminiModel']);
     if (!geminiApiKey) {
       showError('Gemini API Anahtarı ayarlanmamış. Lütfen Seçenekler sayfasından ayarlayın.');
@@ -172,17 +191,96 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     const modelToUse = geminiModel || 'gemini-2.5-flash-preview-05-20'; // Default model
 
+    // Initial prompt construction based on preview (for simple mode or as final check for interpretive)
+    let finalPromptForAPI = promptPreviewArea.textContent;
+
+    if (finalPromptForAPI.match(/\{([^}]+)\}/g)) {
+        showError('Lütfen tüm değişken alanlarını doldurun. Önizlemede {alan_adı} şeklinde yer tutucular kalmamalıdır.');
+        return;
+    }
+    if (!finalPromptForAPI.trim() && processingMode === "simple") { // Only fail for simple if it's empty
+        showError('Oluşturulan prompt boş olamaz (Basit Mod).');
+        return;
+    }
+     if (!mainInputValue && processingMode === "interpretive" && profileTemplate.includes("{USER_INPUT}")) {
+        showError('Yorumlayıcı modda ana girdi boş bırakılamaz eğer şablonda {USER_INPUT} kullanılıyorsa.');
+        return;
+    }
+
+
     generateButton.disabled = true;
-    generateButton.textContent = 'Oluşturuluyor...';
     result.style.display = 'none';
-    // error.style.display = 'none'; // showError zaten bunu yapar
 
     try {
-      const apiRequestBody = {
-        contents: [{ parts: [{ text: generatedPrompt }] }],
-        generationConfig: {
-          temperature: 1.0, topK: 40, topP: 1, maxOutputTokens: 2048
-        },
+      let interpretedPromptText = ""; // Will hold the result of the first step if interpretive
+
+      if (processingMode === "interpretive") {
+        generateButton.textContent = "İşleniyor (1/2)...";
+
+        let processedProfileInstructions = profileTemplate;
+        // Substitute dynamic variables into profileInstructionsTemplate
+        const dynamicVarInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+        dynamicVarInputs.forEach(input => {
+          const varName = input.dataset.variableName;
+          const regex = new RegExp(`\\{${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g');
+          processedProfileInstructions = processedProfileInstructions.replace(regex, input.value || ''); // Replace with empty if not filled
+        });
+
+        // Remove {USER_INPUT} from instructions if it exists, as it's handled separately
+        processedProfileInstructions = processedProfileInstructions.replace(/\{USER_INPUT\}/g, '').trim();
+
+
+        const metaPrompt = `You are a highly skilled prompt engineering assistant. Your specific task is to synthesize the user's main subject with their guiding instructions to create a new, effective, and concise English image generation prompt. Do not add any conversational phrases, disclaimers, or explanations. Output ONLY the resulting image prompt.
+
+User's main subject: "${mainInputValue}"
+User's guiding instructions for prompt creation: "${processedProfileInstructions}"
+
+Generated English image generation prompt:`;
+
+        console.log('Interpretive Mode - Meta Prompt:', metaPrompt);
+
+        const apiRequestBodyStep1 = {
+          contents: [{ parts: [{ text: metaPrompt }] }],
+          generationConfig: { temperature: 0.5, topK: 40, topP: 1, maxOutputTokens: 1024 }, // Slightly more deterministic
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          ]
+        };
+
+        console.log('API Request Body (Step 1 - Interpretive):', JSON.stringify(apiRequestBodyStep1, null, 2));
+        const responseStep1 = await chrome.runtime.sendMessage({
+          action: "makeApiRequest",
+          url: `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${geminiApiKey}`,
+          body: apiRequestBodyStep1
+        });
+        console.log('Response from background.js (Step 1 - Interpretive):', JSON.stringify(responseStep1, null, 2));
+
+        if (!responseStep1.success || !responseStep1.data.candidates || !responseStep1.data.candidates[0]?.content?.parts?.[0]?.text) {
+          throw new Error('Dahili prompt yorumlama hatası: ' + (responseStep1.error || 'Geçersiz yanıt'));
+        }
+        interpretedPromptText = responseStep1.data.candidates[0].content.parts[0].text.trim();
+        promptPreviewArea.textContent = interpretedPromptText; // Update preview with the interpreted prompt
+        finalPromptForAPI = interpretedPromptText; // This will be used for the second call
+
+        if (!finalPromptForAPI.trim()) {
+            showError('Yorumlama sonucu boş bir prompt üretti. Lütfen ana girdiyi veya profil talimatlarını kontrol edin.');
+            generateButton.textContent = 'Prompt Oluştur';
+            generateButton.disabled = false;
+            return;
+        }
+        generateButton.textContent = "İşleniyor (2/2)...";
+      } else { // Simple mode
+        generateButton.textContent = 'Oluşturuluyor...';
+        // finalPromptForAPI is already set from promptPreviewArea.textContent
+      }
+
+      // --- Final API Call (Step 2 for interpretive, Step 1 for simple) ---
+      const apiRequestBodyFinal = {
+        contents: [{ parts: [{ text: finalPromptForAPI }] }],
+        generationConfig: { temperature: 1.0, topK: 40, topP: 1, maxOutputTokens: 2048 },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
@@ -191,58 +289,75 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
       };
 
-      console.log('API Request Body:', JSON.stringify(apiRequestBody, null, 2)); // Log request
-
-      const response = await chrome.runtime.sendMessage({
+      console.log(`API Request Body (${processingMode === 'interpretive' ? 'Step 2 - Final' : 'Simple Mode'}):`, JSON.stringify(apiRequestBodyFinal, null, 2));
+      const finalResponse = await chrome.runtime.sendMessage({
         action: "makeApiRequest",
         url: `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${geminiApiKey}`,
-        body: apiRequestBody
+        body: apiRequestBodyFinal
       });
+      console.log(`Response from background.js (${processingMode === 'interpretive' ? 'Step 2 - Final' : 'Simple Mode'}):`, JSON.stringify(finalResponse, null, 2));
 
-      console.log('Response from background.js:', JSON.stringify(response, null, 2)); // Log response
-
-      if (!response.success) {
-        throw new Error(response.error || 'API yanıtında bilinmeyen bir hata oluştu.');
+      if (!finalResponse.success) {
+        throw new Error(finalResponse.error || 'API yanıtında bilinmeyen bir hata oluştu.');
       }
-      const data = response.data;
-      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-        console.error("Unexpected API response structure:", data);
-        throw new Error('API yanıtı geçerli bir formatta değil veya içerik boş.');
+      const finalData = finalResponse.data;
+      if (!finalData.candidates || !finalData.candidates[0]?.content?.parts?.[0]?.text) {
+        console.error("Unexpected API response structure (Final Call):", finalData);
+        throw new Error('API yanıtı geçerli bir formatta değil veya içerik boş (Son Aşama).');
       }
 
-      const finalGeneratedText = data.candidates[0].content.parts[0].text;
+      const finalGeneratedText = finalData.candidates[0].content.parts[0].text;
       result.textContent = finalGeneratedText;
       result.style.display = 'block';
 
-      // History logging
+      // --- Enhanced History Logging ---
       chrome.storage.sync.get(['promptHistory'], function(syncResult) {
-        const history = syncResult.promptHistory || [];
+        let history = syncResult.promptHistory || [];
         if (history.length >= 20) {
           history.shift();
         }
-        
-        let variableSummary = "";
+
+        const dynamicVariableValues = {};
         const dynamicInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
-        if (dynamicInputs.length > 0) {
-            dynamicInputs.forEach(input => {
-                variableSummary += `${input.dataset.variableName}: ${input.value || 'Boş'}, `;
-            });
-            variableSummary = variableSummary.slice(0, -2); // Remove last comma and space
-        } else {
-            variableSummary = "Değişken yok";
-        }
+        dynamicInputs.forEach(input => {
+          dynamicVariableValues[input.dataset.variableName] = input.value || '';
+        });
 
-        const mainInputValueForHistory = userInputText.value.trim();
-
-        history.push({
-          turkishText: `[${currentSelectedProfile.name}] Ana: ${mainInputValueForHistory || '(boş)'} - Değişkenler: ${variableSummary}`,
-          englishPrompt: generatedPrompt,
-          generatedResponse: finalGeneratedText,
+        const baseHistoryEntry = {
           timestamp: new Date().toISOString(),
           model: modelToUse,
-          profileId: currentSelectedProfile.id
+          profileId: currentSelectedProfile.id,
+          profileName: currentSelectedProfile.name,
+          processingMode: processingMode, // already defined: currentSelectedProfile.processingMode || "simple"
+          mainInputText: mainInputValue, // already defined: userInputText.value.trim()
+          dynamicVariableValues: dynamicVariableValues,
+          finalGeneratedResponse: finalGeneratedText // This is the actualAIOutput
+        };
+
+        let summaryTurkishText = `[${baseHistoryEntry.profileName}]`;
+
+        if (processingMode === "interpretive") {
+          baseHistoryEntry.profileInstructionsUsed = processedProfileInstructions; // Defined in interpretive block
+          baseHistoryEntry.metaPromptSent = metaPrompt; // Defined in interpretive block
+          baseHistoryEntry.interpretedPromptText = interpretedPromptText; // Defined in interpretive block
+          baseHistoryEntry.finalPromptSent = interpretedPromptText; // What was sent to the 2nd API call
+          summaryTurkishText += ` (Yorumlayıcı) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+        } else { // Simple mode
+          baseHistoryEntry.profileTemplateUsed = currentSelectedProfile.template;
+          baseHistoryEntry.finalPromptSent = finalPromptForAPI; // The fully constructed prompt
+          summaryTurkishText += ` (Basit) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+        }
+
+        baseHistoryEntry.turkishText = summaryTurkishText; // Deprecated for detailed display, but used as a summary
+
+        history.push(baseHistoryEntry);
+        chrome.storage.sync.set({ 'promptHistory': history }, function() {
+          if (chrome.runtime.lastError) {
+            console.error("Error saving history:", chrome.runtime.lastError);
+          } else {
+            console.log("History saved with new structure.");
+          }
         });
-        chrome.storage.sync.set({ 'promptHistory': history });
       });
 
     } catch (err) {

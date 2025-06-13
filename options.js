@@ -137,7 +137,12 @@ document.addEventListener('DOMContentLoaded', function() {
   function loadProfiles() {
     chrome.storage.sync.get(['promptProfiles'], function(result) {
       if (result.promptProfiles) {
-        profiles = result.promptProfiles;
+        profiles = result.promptProfiles.map(p => {
+          if (!p.processingMode) {
+            p.processingMode = "simple"; // Default for older profiles
+          }
+          return p;
+        });
       } else {
         profiles = []; // Initialize if not present
       }
@@ -164,12 +169,19 @@ document.addEventListener('DOMContentLoaded', function() {
       profileTemplateInput.value = profile.template;
       profileIdInput.value = profile.id;
       profileForm.querySelector('h3').textContent = 'Profili Düzenle';
+      // Set processing mode
+      if (profile.processingMode === "interpretive") {
+        document.getElementById('modeInterpretive').checked = true;
+      } else {
+        document.getElementById('modeSimple').checked = true; // Default
+      }
     } else {
       profileNameInput.value = '';
       profileDescriptionInput.value = '';
       profileTemplateInput.value = '';
       profileIdInput.value = '';
       profileForm.querySelector('h3').textContent = 'Yeni Profil Ekle';
+      document.getElementById('modeSimple').checked = true; // Default for new profiles
     }
     profileForm.style.display = 'block';
     profileNameInput.focus(); // Focus on the first input
@@ -193,6 +205,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const description = profileDescriptionInput.value.trim();
     const template = profileTemplateInput.value.trim();
     const id = profileIdInput.value;
+    const selectedMode = document.querySelector('input[name="processingMode"]:checked') ?
+                         document.querySelector('input[name="processingMode"]:checked').value :
+                         "simple"; // Default if somehow none is checked
 
     if (!name) {
       showProfileFormError('Profil ismi boş bırakılamaz.');
@@ -211,14 +226,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isEditing) {
       const profileIndex = profiles.findIndex(p => p.id === id);
       if (profileIndex > -1) {
-        profiles[profileIndex] = { ...profiles[profileIndex], name, description, template };
+        profiles[profileIndex] = {
+          ...profiles[profileIndex],
+          name,
+          description,
+          template,
+          processingMode: selectedMode
+        };
       }
     } else {
       const newProfile = {
         id: 'profile_' + Date.now(),
         name,
         description,
-        template
+        template,
+        processingMode: selectedMode
       };
       profiles.push(newProfile);
     }

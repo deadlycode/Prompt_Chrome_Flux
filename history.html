@@ -16,37 +16,67 @@
       padding: 15px;
       margin-bottom: 15px;
       background-color: #f9f9f9;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-    .turkish-text {
-      color: #2c3e50;
+    .history-item h3 { /* For Profile Name */
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #2980b9;
+      font-size: 1.1em;
+    }
+    .history-item p {
+      margin: 5px 0;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+    .history-item strong {
+      color: #555;
+    }
+    .history-block {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #eee;
+    }
+    .history-block pre { /* For code-like text: prompts, templates */
+      white-space: pre-wrap;
+      word-break: break-all;
+      background-color: #ecf0f1;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      color: #333;
+      max-height: 200px; /* Limit height for very long text */
+      overflow-y: auto; /* Add scroll for overflow */
+    }
+    .dynamic-vars {
+      background-color: #fdf2e9; /* Light orange */
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    .dynamic-vars strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .final-output {
+      background-color: #e8f8ef; /* Light green */
+      padding: 10px;
+      border: 1px solid #d0e9c6;
+      border-radius: 4px;
+    }
+    .final-output pre {
+      background-color: transparent; /* Inherit from parent */
+      padding: 0;
+    }
+
+    /* .turkish-text, .english-prompt, .generated-response, .profile-info, .timestamp - these specific classes might be less used or restyled */
+    .timestamp-model-info {
+      font-size: 0.85em;
+      color: #7f8c8d;
       margin-bottom: 10px;
     }
-    .english-prompt { /* This will be the prompt sent to API */
-      color: #3498db; /* Changed color for distinction */
-      font-style: italic;
-      margin-top: 5px;
-    }
-    .generated-response { /* This is the AI's actual response */
-      color: #27ae60; /* Original green for final output */
-      font-style: normal; /* Normal style for readability */
-      margin-top: 5px;
-      white-space: pre-wrap; /* Preserve formatting */
-      background-color: #e8f8ef; /* Light green background */
-      padding: 8px;
-      border-radius: 3px;
-    }
-    .profile-info {
-      color: #8e44ad;
-      font-size: 0.9em;
-      margin-top: 5px;
-    }
-    .timestamp {
-      color: #7f8c8d;
-      font-size: 0.9em;
-      margin-top: 10px;
-    }
     .copy-button {
-      background-color: #f39c12;
+      background-color: #f39c12; /* Orange */
       color: white;
       border: none;
       padding: 5px 10px;
