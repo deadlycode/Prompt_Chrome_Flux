@@ -21,14 +21,40 @@
       color: #2c3e50;
       margin-bottom: 10px;
     }
-    .english-prompt {
-      color: #27ae60;
+    .english-prompt { /* This will be the prompt sent to API */
+      color: #3498db; /* Changed color for distinction */
       font-style: italic;
+      margin-top: 5px;
+    }
+    .generated-response { /* This is the AI's actual response */
+      color: #27ae60; /* Original green for final output */
+      font-style: normal; /* Normal style for readability */
+      margin-top: 5px;
+      white-space: pre-wrap; /* Preserve formatting */
+      background-color: #e8f8ef; /* Light green background */
+      padding: 8px;
+      border-radius: 3px;
+    }
+    .profile-info {
+      color: #8e44ad;
+      font-size: 0.9em;
+      margin-top: 5px;
     }
     .timestamp {
       color: #7f8c8d;
       font-size: 0.9em;
       margin-top: 10px;
+    }
+    .copy-button {
+      background-color: #f39c12;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.8em;
+      margin-top: 10px;
+      display: block; /* Make it block to take full width or use float */
     }
     .clear-history {
       background-color: #e74c3c;

@@ -38,6 +38,10 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      margin-right: 5px; /* Profil butonları arası boşluk */
+    }
+    button:hover {
+      opacity: 0.9;
     }
     .status {
       margin-top: 10px;
@@ -47,6 +51,16 @@
     .success {
       background-color: #dff0d8;
       color: #3c763d;
+      border: 1px solid #d6e9c6;
+    }
+    .error-message { /* Hata mesajları için stil */
+        background-color: #f2dede;
+        color: #a94442;
+        padding: 10px;
+        border: 1px solid #ebccd1;
+        border-radius: 4px;
+        margin-top: 10px;
+        display: none; /* Başlangıçta gizli */
     }
     .model-info {
       font-size: 12px;
@@ -54,11 +68,72 @@
       margin-top: 5px;
       font-style: italic;
     }
+    textarea { /* Genel textarea stili */
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-sizing: border-box; /* Important for width */
+    }
+
+    /* Profil Yönetimi Stilleri */
+    #profileManagementContainer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+    }
+    #profileList .profile-item {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 10px;
+      background-color: #f9f9f9;
+    }
+    #profileList .profile-item h4 {
+      margin-top: 0;
+      margin-bottom: 5px;
+    }
+    #profileList .profile-item p {
+      margin-bottom: 10px;
+      font-size: 0.9em;
+      color: #555;
+    }
+    #profileList .profile-item button {
+      padding: 5px 10px; /* Daha küçük butonlar */
+      font-size: 0.9em;
+      margin-right: 5px;
+    }
+    .edit-profile-button { background-color: #3498db; }
+    .delete-profile-button { background-color: #e74c3c; }
+    .duplicate-profile-button { background-color: #f1c40f; color: #333; }
+
+    #profileForm {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #fefefe;
+    }
+    #profileForm h3 {
+      margin-top: 0;
+    }
+    #profileForm input[type="text"],
+    #profileForm textarea {
+      width: calc(100% - 16px); /* Padding'i hesaba kat */
+    }
+    #saveProfileButton {
+      background-color: #2ecc71; /* Yeşil */
+    }
+    #cancelProfileButton {
+      background-color: #95a5a6; /* Gri */
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Gemini API Ayarları</h2>
+    <div id="apiSettingsStatus" class="status"></div> <!-- API ayarları için ayrı status divi -->
     <div class="form-group">
       <label for="apiKey">Gemini API Key:</label>
       <input type="text" id="apiKey" placeholder="API Key'inizi girin">
@@ -74,8 +149,37 @@
       <div class="model-info" id="modelInfo">Gemini 2.5 Flash Preview: Adaptif düşünme ve maliyet verimliliği için optimize edilmiş en yeni model.</div>
     </div>
     <button id="save">Kaydet</button>
-    <div id="status" class="status"></div>
   </div>
+
+  <div class="container" id="profileManagementContainer">
+    <h2>Prompt Profilleri</h2>
+    <div id="profileGeneralStatus" class="status"></div> <!-- Profil işlemleri için genel status divi -->
+    <div id="profileFormStatus" class="error-message"></div> <!-- Profil formu hataları için -->
+    <button id="addNewProfileButton">Yeni Profil Ekle</button>
+    <div id="profileList" style="margin-top:15px;">
+      <!-- Profil listesi buraya gelecek -->
+    </div>
+
+    <form id="profileForm" style="display: none;">
+      <h3>Profil Ekle/Düzenle</h3>
+      <input type="hidden" id="profileIdInput">
+      <div class="form-group">
+        <label for="profileNameInput">Profil Adı:</label>
+        <input type="text" id="profileNameInput" placeholder="Profil adını girin">
+      </div>
+      <div class="form-group">
+        <label for="profileDescriptionInput">Profil Açıklaması:</label>
+        <textarea id="profileDescriptionInput" rows="3" placeholder="Profil açıklamasını girin"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="profileTemplateInput">Prompt Şablonu:</label>
+        <textarea id="profileTemplateInput" rows="5" placeholder="Prompt şablonunu girin"></textarea>
+      </div>
+      <button type="button" id="saveProfileButton">Profili Kaydet</button>
+      <button type="button" id="cancelProfileButton">İptal</button>
+    </form>
+  </div>
+
   <script src="options.js"></script>
 </body>
 </html>
