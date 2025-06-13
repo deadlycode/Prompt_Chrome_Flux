@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Prompt Geçmişi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .history-item {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background-color: #f9f9f9;
+    }
+    .turkish-text {
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    .english-prompt {
+      color: #27ae60;
+      font-style: italic;
+    }
+    .timestamp {
+      color: #7f8c8d;
+      font-size: 0.9em;
+      margin-top: 10px;
+    }
+    .clear-history {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .no-history {
+      text-align: center;
+      color: #7f8c8d;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Prompt Geçmişi</h1>
+  <button id="clearHistory" class="clear-history">Geçmişi Temizle</button>
+  <div id="historyContainer"></div>
+  <script src="history.js"></script>
+</body>
+</html>
