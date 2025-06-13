@@ -314,66 +314,83 @@ Generated English image generation prompt:`;
       result.textContent = finalGeneratedText;
       result.style.display = 'block'; // Display the final AI output
 
-      // --- History Logging - Moved to the end of try block ---
-      // All variables (finalGeneratedText, interpretedPromptText, metaPrompt, processedProfileInstructions, etc.)
-      // should be defined and populated by this point.
+      // --- Enhanced History Logging using chrome.storage.local and historyLimit ---
+      try {
+        const dynamicVariableValues = {};
+        const dynamicInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
+        dynamicInputs.forEach(input => {
+          dynamicVariableValues[input.dataset.variableName] = input.value || '';
+        });
 
-      const dynamicVariableValues = {};
-      const dynamicInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
-      dynamicInputs.forEach(input => {
-        dynamicVariableValues[input.dataset.variableName] = input.value || '';
-      });
+        const baseHistoryEntry = {
+          timestamp: new Date().toISOString(),
+          model: modelToUse,
+          profileId: currentSelectedProfile.id,
+          profileName: currentSelectedProfile.name,
+          processingMode: processingMode,
+          mainInputText: mainInputValue,
+          dynamicVariableValues: dynamicVariableValues,
+          finalGeneratedResponse: finalGeneratedText
+        };
 
-      const baseHistoryEntry = {
-        timestamp: new Date().toISOString(),
-        model: modelToUse, // Defined at the start of the function
-        profileId: currentSelectedProfile.id,
-        profileName: currentSelectedProfile.name,
-        processingMode: processingMode, // Defined at the start of the function
-        mainInputText: mainInputValue, // Defined at the start of the function
-        dynamicVariableValues: dynamicVariableValues,
-        finalGeneratedResponse: finalGeneratedText // Should hold the actual AI output
-      };
+        let summaryTurkishText = `[${baseHistoryEntry.profileName}]`;
+        if (processingMode === "interpretive") {
+          baseHistoryEntry.profileInstructionsUsed = processedProfileInstructions;
+          baseHistoryEntry.metaPromptSent = metaPrompt;
+          baseHistoryEntry.interpretedPromptText = interpretedPromptText;
+          baseHistoryEntry.finalPromptSent = interpretedPromptText;
+          summaryTurkishText += ` (Yorumlayıcı) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+        } else { // Simple mode
+          baseHistoryEntry.profileTemplateUsed = currentSelectedProfile.template;
+          baseHistoryEntry.finalPromptSent = finalPromptForAPI;
+          summaryTurkishText += ` (Basit) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+        }
+        baseHistoryEntry.turkishText = summaryTurkishText;
 
-      let summaryTurkishText = `[${baseHistoryEntry.profileName}]`;
+        console.log('[HISTORY SAVE ATTEMPT] baseHistoryEntry (to be saved to local):', JSON.stringify(baseHistoryEntry, null, 2));
 
-      if (processingMode === "interpretive") {
-        // These variables are specific to the interpretive block and should be passed or accessible here.
-        // Assuming 'processedProfileInstructions' and 'metaPrompt' are available from the interpretive scope.
-        baseHistoryEntry.profileInstructionsUsed = processedProfileInstructions;
-        baseHistoryEntry.metaPromptSent = metaPrompt;
-        baseHistoryEntry.interpretedPromptText = interpretedPromptText; // This is the result of the 1st API call
-        baseHistoryEntry.finalPromptSent = interpretedPromptText; // This was sent to the 2nd API call
-        summaryTurkishText += ` (Yorumlayıcı) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
-      } else { // Simple mode
-        baseHistoryEntry.profileTemplateUsed = currentSelectedProfile.template;
-        baseHistoryEntry.finalPromptSent = finalPromptForAPI; // The fully constructed prompt sent to API
-        summaryTurkishText += ` (Basit) - Girdi: ${baseHistoryEntry.mainInputText.substring(0,25)}${baseHistoryEntry.mainInputText.length > 25 ? '...' : ''}`;
+        // 1. Get current historyLimit setting
+        let historyLimit = 100; // Default
+        const settings = await new Promise(resolve => chrome.storage.sync.get(['historyLimit'], resolve));
+        if (settings && settings.historyLimit !== undefined) {
+            historyLimit = parseInt(settings.historyLimit, 10);
+        }
+        console.log('[HISTORY] Using limit:', historyLimit === 0 ? 'Maksimum (Tarayıcı Limiti)' : historyLimit);
+
+        // 2. Get current history array from local storage
+        const localResult = await new Promise(resolve => chrome.storage.local.get(['promptHistoryLocal'], resolve));
+        let history = localResult.promptHistoryLocal || [];
+        console.log('[HISTORY LOAD] Loaded promptHistoryLocal array (length):', history.length);
+
+        // 3. Add new entry
+        history.push(baseHistoryEntry);
+
+        // 4. Apply limit
+        if (historyLimit > 0 && history.length > historyLimit) {
+            history = history.slice(history.length - historyLimit);
+            console.log('[HISTORY] Applied limit, new history length:', history.length);
+        }
+
+        // 5. Save updated history array to local storage
+        await new Promise((resolve, reject) => {
+            chrome.storage.local.set({ 'promptHistoryLocal': history }, function() {
+                if (chrome.runtime.lastError) {
+                    console.error('[HISTORY SAVE FAILED] Error saving to local:', chrome.runtime.lastError.message);
+                    // Optionally, inform user: showError('Uyarı: Geçmiş girdisi kaydedilemedi. ' + chrome.runtime.lastError.message);
+                    reject(chrome.runtime.lastError);
+                } else {
+                    console.log('[HISTORY SAVE SUCCESS] History array saved to local. New length:', history.length);
+                    resolve();
+                }
+            });
+        });
+      } catch (histError) {
+        console.error("Error during history saving process:", histError.message, histError.stack);
+        // Non-critical, so don't necessarily show to user unless it's a persistent problem.
       }
 
-      baseHistoryEntry.turkishText = summaryTurkishText;
-
-      console.log('[HISTORY SAVE ATTEMPT] baseHistoryEntry:', JSON.stringify(baseHistoryEntry, null, 2));
-
-      // Get current history, push new entry, then save.
-      chrome.storage.sync.get(['promptHistory'], function(syncResult) {
-        let history = syncResult.promptHistory || [];
-        history.push(baseHistoryEntry);
-        // Keep only the last 20 entries
-        if (history.length > 20) {
-          history = history.slice(history.length - 20);
-        }
-        chrome.storage.sync.set({ 'promptHistory': history }, function() {
-          if (chrome.runtime.lastError) {
-            console.error('[HISTORY SAVE FAILED] Error saving history:', chrome.runtime.lastError.message);
-          } else {
-            console.log('[HISTORY SAVE SUCCESS] History array saved successfully to chrome.storage.sync.');
-          }
-        });
-      });
-
     } catch (err) {
-      console.error("Prompt generation error:", err.message, err.stack); // Log stack for more details
+      console.error("Prompt generation error:", err.message, err.stack);
       showError('Hata: ' + err.message);
     } finally {
       generateButton.disabled = false;

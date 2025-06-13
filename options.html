@@ -200,6 +200,26 @@
     </form>
   </div>
 
+  <div class="container" id="historySettingsContainer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+    <h2>Geçmiş Ayarları</h2>
+    <div class="form-group">
+      <label for="historyLimitSelect">Geçmiş Limiti:</label>
+      <select id="historyLimitSelect">
+        <option value="20">20 Öğe</option>
+        <option value="50">50 Öğe</option>
+        <option value="100" selected>100 Öğe</option> <!-- Default selected -->
+        <option value="200">200 Öğe</option>
+        <option value="500">500 Öğe</option>
+        <option value="1000">1000 Öğe</option>
+        <option value="0">Maksimum (Tarayıcı Limiti)</option>
+      </select>
+      <div class="template-helper-text" style="font-size: 0.85em; color: #555; margin-top: 5px;">
+        Kaydedilecek maksimum prompt geçmişi sayısını belirleyin. "Maksimum" seçeneği, tarayıcının depolama limitlerine kadar izin verir.
+      </div>
+    </div>
+    <!-- The existing "Kaydet" button for API/Model settings will be used to save this as well -->
+  </div>
+
   <script src="options.js"></script>
 </body>
 </html>

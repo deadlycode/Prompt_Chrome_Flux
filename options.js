@@ -6,49 +6,62 @@ document.addEventListener('DOMContentLoaded', function() {
   const profileFormStatus = document.getElementById('profileFormStatus'); // Profile form error messages
   
   // Model açıklamaları
-  const modelDescriptions = {
+  const modelDescriptions = { // ... (rest of model descriptions remain the same)
     'gemini-2.5-flash-preview-05-20': 'Gemini 2.5 Flash Preview: Adaptif düşünme ve maliyet verimliliği için optimize edilmiş en yeni model.',
     'gemini-2.5-pro-preview-05-06': 'Gemini 2.5 Pro Preview: Gelişmiş düşünme ve muhakeme, çok modlu anlama, gelişmiş kodlama için optimize edilmiş en güçlü model.',
     'gemini-2.0-flash': 'Gemini 2.0 Flash: Yeni nesil özellikler, hız ve gerçek zamanlı akış için optimize edilmiş kararlı model.',
     'gemini-1.5-pro': 'Gemini 1.5 Pro: Daha fazla zeka gerektiren karmaşık muhakeme görevleri için optimize edilmiş model.'
   };
+  const historyLimitSelect = document.getElementById('historyLimitSelect');
   
   // Model seçimi değiştiğinde açıklamayı güncelle
   modelSelect.addEventListener('change', function() {
-    modelInfo.textContent = modelDescriptions[modelSelect.value];
+    modelInfo.textContent = modelDescriptions[modelSelect.value] || "Model açıklaması bulunamadı.";
   });
 
   // Kayıtlı ayarları yükle
-  chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], function(result) {
+  chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'historyLimit'], function(result) {
     if (result.geminiApiKey) {
       document.getElementById('apiKey').value = result.geminiApiKey;
     }
     
     if (result.geminiModel) {
       modelSelect.value = result.geminiModel;
-      if (modelDescriptions[result.geminiModel]) { // Check if model exists
+      if (modelDescriptions[result.geminiModel]) {
         modelInfo.textContent = modelDescriptions[result.geminiModel];
       } else {
         modelInfo.textContent = "Seçili model için açıklama bulunamadı.";
       }
     } else {
-       // Set default model if none is stored and update info
-      modelSelect.value = 'gemini-2.5-flash-preview-05-20'; // Default value
+      modelSelect.value = 'gemini-2.5-flash-preview-05-20';
       modelInfo.textContent = modelDescriptions[modelSelect.value];
+    }
+
+    if (result.historyLimit) {
+      historyLimitSelect.value = result.historyLimit;
+    } else {
+      historyLimitSelect.value = "100"; // Default value if not set
     }
   });
 
-  // Kaydet butonuna tıklandığında
+  // Kaydet butonuna tıklandığında (API, Model ve Geçmiş Limiti)
   document.getElementById('save').addEventListener('click', function() {
     const apiKey = document.getElementById('apiKey').value;
     const selectedModel = modelSelect.value;
+    const selectedHistoryLimit = historyLimitSelect.value;
     
     chrome.storage.sync.set({
       geminiApiKey: apiKey,
-      geminiModel: selectedModel
+      geminiModel: selectedModel,
+      historyLimit: selectedHistoryLimit
     }, function() {
-      apiSettingsStatus.textContent = 'API Ayarları kaydedildi!';
-      apiSettingsStatus.className = 'status success';
+      if (chrome.runtime.lastError) {
+        apiSettingsStatus.textContent = 'Hata: Ayarlar kaydedilemedi. ' + chrome.runtime.lastError.message;
+        apiSettingsStatus.className = 'status error-message'; // Hata stili
+      } else {
+        apiSettingsStatus.textContent = 'Tüm ayarlar kaydedildi!';
+        apiSettingsStatus.className = 'status success';
+      }
       apiSettingsStatus.style.display = 'block';
       
       setTimeout(function() {

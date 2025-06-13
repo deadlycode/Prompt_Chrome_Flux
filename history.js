@@ -25,10 +25,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function renderHistory() {
-    chrome.storage.sync.get(['promptHistory'], function(result) {
-      console.log('[HISTORY LOAD] Raw result from chrome.storage.sync.get:', JSON.stringify(result, null, 2));
-      const history = result.promptHistory || [];
-      console.log('[HISTORY LOAD] Extracted promptHistory array:', JSON.stringify(history, null, 2));
+    chrome.storage.local.get(['promptHistoryLocal'], function(result) { // Changed to local and new key
+      console.log('[HISTORY LOAD] Raw result from chrome.storage.local.get:', JSON.stringify(result, null, 2)); // Updated log
+      const history = result.promptHistoryLocal || []; // Changed to new key
+      console.log('[HISTORY LOAD] Extracted promptHistoryLocal array:', JSON.stringify(history, null, 2)); // Updated log
 
       if (history.length === 0) {
         historyContainer.innerHTML = '<p class="no-history">Henüz kaydedilmiş bir prompt bulunmuyor.</p>';
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   clearHistoryButton.addEventListener('click', function() {
     if (confirm('Tüm geçmişi silmek istediğinizden emin misiniz?')) {
-      chrome.storage.sync.set({ 'promptHistory': [] }, function() {
+       chrome.storage.local.set({ 'promptHistoryLocal': [] }, function() { // Changed to local and new key
         renderHistory(); // Re-render to show empty state
         alert('Prompt geçmişi temizlendi.');
       });
