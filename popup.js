@@ -212,12 +212,16 @@ document.addEventListener('DOMContentLoaded', function() {
     result.style.display = 'none';
 
     try {
-      let interpretedPromptText = ""; // Will hold the result of the first step if interpretive
+      // Declare variables that might be used in history logging or across different paths
+      let processedProfileInstructions = "";
+      let metaPrompt = "";
+      let interpretedPromptText = "";
 
       if (processingMode === "interpretive") {
         generateButton.textContent = "İşleniyor (1/2)...";
 
-        let processedProfileInstructions = profileTemplate;
+        // Assign to the already declared processedProfileInstructions
+        processedProfileInstructions = profileTemplate;
         // Substitute dynamic variables into profileInstructionsTemplate
         const dynamicVarInputs = dynamicInputsContainer.querySelectorAll('input[data-variable-name]');
         dynamicVarInputs.forEach(input => {
